@@ -33,10 +33,19 @@ namespace WifiPositioningPrototype
 
         private void Update()
         {
-            Vector2 input = ReadKeyboard() + ReadUi();
+            ApplyMovement(ReadCurrentInput(), Time.deltaTime);
+        }
+
+        public Vector2 ReadCurrentInput()
+        {
+            return ReadKeyboard() + ReadUi();
+        }
+
+        public void ApplyMovement(Vector2 input, float deltaTime)
+        {
             if (input.sqrMagnitude > 1f) input.Normalize();
 
-            Vector2 next = (Vector2)transform.position + input * movementSpeed * Time.deltaTime;
+            Vector2 next = (Vector2)transform.position + input * movementSpeed * Mathf.Max(0f, deltaTime);
             if (roomBounds != null) next = roomBounds.Clamp(next, boundaryInset);
             transform.position = new Vector3(next.x, next.y, transform.position.z);
         }
