@@ -13,6 +13,10 @@ namespace WifiPositioningPrototype
         [SerializeField] private float minimumBarSignal = -90f;
         [SerializeField] private float maximumBarSignal = -20f;
 
+        [Header("Instability status")]
+        [SerializeField, Min(0f)] private float unstableRangeThreshold = 5f;
+        [SerializeField, Min(0f)] private float severeRangeThreshold = 9f;
+
         private readonly List<SignalRowView> rows = new();
         private Text positionText;
 
@@ -22,12 +26,13 @@ namespace WifiPositioningPrototype
         public void Refresh(Vector2 estimated, float error, bool valid)
         {
             foreach (SignalRowView row in rows)
-                row.Refresh(strongThreshold, goodThreshold, fairThreshold, minimumBarSignal, maximumBarSignal);
+                row.Refresh(strongThreshold, goodThreshold, fairThreshold, minimumBarSignal, maximumBarSignal,
+                    unstableRangeThreshold, severeRangeThreshold);
 
             if (positionText != null)
                 positionText.text = valid
-                    ? $"ESTIMATED POSITION\nX  {estimated.x,6:0.00} m\nY  {estimated.y,6:0.00} m\nERROR  {error:0.000} m"
-                    : "ESTIMATED POSITION\nNO VALID SOLUTION";
+                    ? $"SIGNAL ESTIMATE (1 Hz)\nX  {estimated.x,6:0.00} m\nY  {estimated.y,6:0.00} m\nERROR  {error:0.000} m"
+                    : "SIGNAL ESTIMATE (1 Hz)\nNO VALID SOLUTION";
         }
     }
 }

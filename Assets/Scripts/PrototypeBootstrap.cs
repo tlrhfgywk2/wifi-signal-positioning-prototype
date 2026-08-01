@@ -16,7 +16,14 @@ namespace WifiPositioningPrototype
         [Header("Signal model")]
         [SerializeField] private float referenceSignalStrength = -20f;
         [SerializeField, Min(0.001f)] private float signalLossPerMeter = 5f;
+        [SerializeField, Min(0.1f)] private float signalMeasurementInterval = 1f;
+        [SerializeField, Min(0f)] private float signalNoiseAmplitude = 3f;
         [SerializeField, Range(0.1f, 1f)] private float accessPointInset = 0.45f;
+
+        [Header("Radio interference")]
+        [SerializeField] private RadioInterferenceCreature interferenceCreature;
+        [SerializeField] private Vector2 fallbackCreaturePosition = new(-1.2f, 1.1f);
+        [SerializeField] private bool showInterferenceDebug;
 
         private readonly List<AccessPointSignal> accessPoints = new();
         private PlayerMovement player;
@@ -25,6 +32,9 @@ namespace WifiPositioningPrototype
         private Transform estimatedMarker;
         private Material whiteMaterial;
         private Font uiFont;
+        private float nextSignalMeasurementTime;
+
+        public void ConfigureCreature(RadioInterferenceCreature creature) => interferenceCreature = creature;
 
         private void Awake()
         {
@@ -34,9 +44,13 @@ namespace WifiPositioningPrototype
 
         private void LateUpdate()
         {
-            if (player == null) return;
+            if (player == null || Time.time < nextSignalMeasurementTime) return;
+            float interval = signalMeasurementInterval > 0f ? Mathf.Max(0.1f, signalMeasurementInterval) : 1f;
+            nextSignalMeasurementTime = Time.time + interval;
+
             Vector2 actual = player.transform.position;
-            foreach (AccessPointSignal accessPoint in accessPoints) accessPoint.Refresh(actual);
+            foreach (AccessPointSignal accessPoint in accessPoints)
+                accessPoint.Refresh(actual, interferenceCreature, Time.time);
 
             bool valid = estimator.Refresh(accessPoints);
             if (valid) estimatedMarker.position = new Vector3(estimator.EstimatedPosition.x, estimator.EstimatedPosition.y, -0.2f);
@@ -60,16 +74,34 @@ namespace WifiPositioningPrototype
             player = BuildPlayer(world, bounds);
             estimator = new GameObject("Signal Position Estimator").AddComponent<SignalPositionEstimator>();
             estimator.transform.SetParent(transform);
-            estimatedMarker = BuildRing("Estimated Position Marker", world, 0.20f, 0.035f, 40);
+            estimatedMarker = BuildRing("Signal Estimated Position (Red Ring)", world,
+                0.22f, 0.04f, 40, Color.red);
             estimatedMarker.position = Vector3.zero;
 
             BuildAccessPoints(world, bounds);
+            EnsureInterferenceCreature(world);
+            RadioInterferenceDebugVisualizer visualizer = gameObject.AddComponent<RadioInterferenceDebugVisualizer>();
+            visualizer.Configure(accessPoints, player.transform, interferenceCreature, showInterferenceDebug);
             Canvas canvas = BuildCanvas(camera);
             signalPanel = BuildSignalPanel(canvas.transform);
             BuildDirectionalPad(canvas.transform);
             BuildEventSystem();
 
-            foreach (AccessPointSignal accessPoint in accessPoints) accessPoint.Refresh(player.transform.position);
+            foreach (AccessPointSignal accessPoint in accessPoints)
+                accessPoint.Refresh(player.transform.position, interferenceCreature, Time.time);
+        }
+
+        private void EnsureInterferenceCreature(Transform world)
+        {
+            if (interferenceCreature == null)
+                interferenceCreature = FindFirstObjectByType<RadioInterferenceCreature>();
+            if (interferenceCreature != null) return;
+
+            GameObject creatureObject = new("Radio Interference Creature");
+            creatureObject.transform.SetParent(world);
+            creatureObject.transform.position = new Vector3(fallbackCreaturePosition.x, fallbackCreaturePosition.y, 0f);
+            interferenceCreature = creatureObject.AddComponent<RadioInterferenceCreature>();
+            Debug.LogWarning("No scene creature reference was assigned; a runtime fallback creature was created.", this);
         }
 
         private Camera BuildCamera()
@@ -115,7 +147,7 @@ namespace WifiPositioningPrototype
 
         private PlayerMovement BuildPlayer(Transform parent, RoomBounds bounds)
         {
-            GameObject playerObject = BuildFilledShape("Actual Player (Solid Dot)", parent,
+            GameObject playerObject = BuildFilledShape("Inertial Position (Solid White Dot)", parent,
                 BuildCircleMesh(0.14f, 28), Color.white, -0.1f);
             PlayerMovement movement = playerObject.AddComponent<PlayerMovement>();
             movement.Configure(bounds, playerSpeed, 0.14f);
@@ -137,7 +169,7 @@ namespace WifiPositioningPrototype
             GameObject pointObject = BuildFilledShape($"Access Point {id}", parent,
                 BuildDiamondMesh(0.22f), Color.white, 0f);
             AccessPointSignal signal = pointObject.AddComponent<AccessPointSignal>();
-            signal.Configure(id, position, referenceSignalStrength, signalLossPerMeter);
+            signal.Configure(id, position, referenceSignalStrength, signalLossPerMeter, signalNoiseAmplitude);
             accessPoints.Add(signal);
 
             GameObject labelObject = new($"{id} Label");
@@ -179,7 +211,7 @@ namespace WifiPositioningPrototype
 
             CreateText("Title", panel, "WI-FI POSITIONING DIAGNOSTIC", 20, TextAnchor.MiddleLeft,
                 new Vector2(0.06f, 0.88f), new Vector2(0.94f, 0.97f), Color.white);
-            CreateText("Header", panel, "AP / CORNER          SIGNAL          VALUE       STATUS", 11, TextAnchor.MiddleLeft,
+            CreateText("Header", panel, "AP        SIGNAL       VALUE / DELTA        STATUS", 11, TextAnchor.MiddleLeft,
                 new Vector2(0.06f, 0.82f), new Vector2(0.94f, 0.88f), new Color(0.72f, 0.72f, 0.72f));
 
             SignalPanelController controller = panel.gameObject.AddComponent<SignalPanelController>();
@@ -187,11 +219,11 @@ namespace WifiPositioningPrototype
                 controller.AddRow(BuildSignalRow(panel, accessPoints[i], 0.74f - i * 0.105f));
 
             Text coordinateText = CreateText("Estimated Coordinates", panel, string.Empty, 18, TextAnchor.UpperLeft,
-                new Vector2(0.06f, 0.21f), new Vector2(0.94f, 0.47f), Color.white);
+                new Vector2(0.06f, 0.21f), new Vector2(0.94f, 0.47f-0.12f), Color.white);
             controller.Configure(coordinateText);
 
             CreateText("Legend", panel,
-                "LEGEND\nSOLID DOT   Actual player\nTHIN RING   Signal-derived estimate", 14, TextAnchor.UpperLeft,
+                "LEGEND\nWHITE DOT   Inertial / trusted\nRED RING    Signal estimate / 1 Hz", 14, TextAnchor.UpperLeft,
                 new Vector2(0.06f, 0.07f), new Vector2(0.94f, 0.22f), new Color(0.82f, 0.82f, 0.82f));
             return controller;
         }
@@ -201,9 +233,9 @@ namespace WifiPositioningPrototype
             RectTransform row = CreateRect($"{accessPoint.Identifier} Signal Row", panel,
                 new Vector2(0.06f, top - 0.08f), new Vector2(0.94f, top), Vector2.zero, Vector2.zero);
             Text identifier = CreateText("Identifier", row, accessPoint.Identifier, 17, TextAnchor.MiddleLeft,
-                new Vector2(0f, 0f), new Vector2(0.20f, 1f), Color.white);
+                new Vector2(0f, 0f), new Vector2(0.12f, 1f), Color.white);
 
-            RectTransform bar = CreateRect("Signal Bar", row, new Vector2(0.22f, 0.31f), new Vector2(0.54f, 0.69f), Vector2.zero, Vector2.zero);
+            RectTransform bar = CreateRect("Signal Bar", row, new Vector2(0.13f, 0.31f), new Vector2(0.39f, 0.69f), Vector2.zero, Vector2.zero);
             Image barBackground = bar.gameObject.AddComponent<Image>();
             barBackground.color = new Color(1f, 1f, 1f, 0.16f);
             RectTransform fillRect = CreateRect("Fill", bar, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
@@ -214,9 +246,9 @@ namespace WifiPositioningPrototype
             fill.fillOrigin = 0;
 
             Text value = CreateText("Value", row, string.Empty, 15, TextAnchor.MiddleRight,
-                new Vector2(0.56f, 0f), new Vector2(0.79f, 1f), Color.white);
-            Text status = CreateText("Status", row, string.Empty, 14, TextAnchor.MiddleRight,
-                new Vector2(0.80f, 0f), new Vector2(1f, 1f), new Color(0.78f, 0.78f, 0.78f));
+                new Vector2(0.40f, 0f), new Vector2(0.69f, 1f), Color.white);
+            Text status = CreateText("Status", row, string.Empty, 11, TextAnchor.MiddleRight,
+                new Vector2(0.70f, 0f), new Vector2(1f, 1f), new Color(0.78f, 0.78f, 0.78f));
 
             SignalRowView view = row.gameObject.AddComponent<SignalRowView>();
             view.Configure(accessPoint, identifier, value, status, fill);
@@ -232,8 +264,8 @@ namespace WifiPositioningPrototype
             CreateDirectionButton(pad, "S / DOWN", Vector2.down, new Vector2(74f, 18f));
             CreateDirectionButton(pad, "D / RIGHT", Vector2.right, new Vector2(136f, 18f));
             CreateText("Instructions", canvas, "Move with WASD, arrow keys, or hold the on-screen controls.",
-                15, TextAnchor.MiddleLeft, Vector2.zero, Vector2.zero, new Color(0.82f, 0.82f, 0.82f),
-                new Vector2(260f, 22f), new Vector2(470f, 28f));
+                18, TextAnchor.MiddleLeft, Vector2.zero, Vector2.zero, new Color(0.82f, 0.82f, 0.82f),
+                new Vector2(260f+320f, 22f), new Vector2(470f, 28f));
         }
 
         private void CreateDirectionButton(Transform parent, string label, Vector2 direction, Vector2 position)
@@ -270,7 +302,7 @@ namespace WifiPositioningPrototype
             return shape;
         }
 
-        private Transform BuildRing(string name, Transform parent, float radius, float width, int segments)
+        private Transform BuildRing(string name, Transform parent, float radius, float width, int segments, Color color)
         {
             GameObject ring = new(name);
             ring.transform.SetParent(parent);
@@ -280,6 +312,7 @@ namespace WifiPositioningPrototype
             line.positionCount = segments;
             line.startWidth = line.endWidth = width;
             line.material = whiteMaterial;
+            line.startColor = line.endColor = color;
             for (int i = 0; i < segments; i++)
             {
                 float angle = i * Mathf.PI * 2f / segments;

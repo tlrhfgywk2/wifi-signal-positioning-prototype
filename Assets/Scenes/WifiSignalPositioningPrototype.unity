@@ -153,7 +153,12 @@ MonoBehaviour:
   playerSpeed: 3
   referenceSignalStrength: -20
   signalLossPerMeter: 5
+  signalMeasurementInterval: 1
+  signalNoiseAmplitude: 3
   accessPointInset: 0.45
+  interferenceCreature: {fileID: 451000003}
+  fallbackCreaturePosition: {x: -1.2, y: 1.1}
+  showInterferenceDebug: 0
 --- !u!4 &857865758
 Transform:
   m_ObjectHideFlags: 0
@@ -166,9 +171,67 @@ Transform:
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
-  m_Children: []
+  m_Children:
+  - {fileID: 451000002}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &451000001
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 451000002}
+  - component: {fileID: 451000003}
+  m_Layer: 0
+  m_Name: Radio Interference Creature
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &451000002
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 451000001}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: -1.2, y: 1.1, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 857865758}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &451000003
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 451000001}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 683d780924b34a37977071171c81176b, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: Assembly-CSharp::WifiPositioningPrototype.RadioInterferenceCreature
+  strongPathRadius: 0.25
+  mediumPathRadius: 0.65
+  interferenceRadius: 1.4
+  maximumNoiseAmplitude: 12
+  mediumNoiseAmplitude: 6
+  weakNoiseAmplitude: 3
+  apProximityInterferenceRadius: 0.9
+  noiseUpdateFrequency: 0.7
+  noiseSeed: 17.31
+  patrolEnabled: 0
+  patrolDistance: 1.5
+  patrolSpeed: 0.5
+  patrolDirection: {x: 1, y: 0}
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0

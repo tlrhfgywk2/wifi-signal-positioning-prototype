@@ -21,27 +21,34 @@ namespace WifiPositioningPrototype
         }
 
         public void Refresh(float strongThreshold, float goodThreshold, float fairThreshold,
-            float minimumBarSignal, float maximumBarSignal)
+            float minimumBarSignal, float maximumBarSignal, float unstableRangeThreshold,
+            float severeRangeThreshold)
         {
             if (accessPoint == null) return;
             float signal = accessPoint.CurrentSignalStrength;
-            identifierText.text = CornerLabel(accessPoint.Identifier);
-            valueText.text = $"{Mathf.RoundToInt(signal),4} dBm";
-            statusText.text = Classify(signal, strongThreshold, goodThreshold, fairThreshold);
+            identifierText.text = accessPoint.Identifier;
+            valueText.text = $"{Mathf.RoundToInt(signal),4} dBm  Δ{accessPoint.DifferenceFromExpected:+0;-0;0}";
+            statusText.text = SignalStatusClassifier.Classify(accessPoint.IsApContaminated,
+                accessPoint.CurrentInterferenceLevel, accessPoint.InstabilityRange,
+                accessPoint.HasRecentCreatureInterference, unstableRangeThreshold, severeRangeThreshold);
             fillImage.fillAmount = Mathf.InverseLerp(minimumBarSignal, maximumBarSignal, signal);
         }
+    }
 
-        private static string Classify(float signal, float strong, float good, float fair)
+    public static class SignalStatusClassifier
+    {
+        public static string Classify(bool contaminated, InterferenceLevel level, float instabilityRange,
+            bool hasRecentCreatureInterference, float unstableThreshold, float severeThreshold)
         {
-            if (signal >= strong) return "STRONG";
-            if (signal >= good) return "GOOD";
-            if (signal >= fair) return "FAIR";
-            return "WEAK";
-        }
-
-        private static string CornerLabel(string id)
-        {
-            return id switch { "NW" => "NW  ↖", "NE" => "NE  ↗", "SW" => "SW  ↙", "SE" => "SE  ↘", _ => id };
+            if (contaminated) return "AP CONTAMINATED";
+            if (level == InterferenceLevel.Strong
+                || hasRecentCreatureInterference && instabilityRange >= severeThreshold)
+                return "SEVERE INTERFERENCE";
+            if (level == InterferenceLevel.Medium
+                || hasRecentCreatureInterference && instabilityRange >= unstableThreshold)
+                return "UNSTABLE";
+            if (level == InterferenceLevel.Weak) return "WEAK INTERFERENCE";
+            return "STABLE";
         }
     }
 }
