@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#101212">
+  <title>Wi-Fi Positioning · Signal diagnostics</title>
+  <link rel="icon" href="data:,">
+</head>
+<body>
+  <header class="mast"><h1><span class="ap-icon" aria-hidden="true"></span>Wi-Fi positioning</h1><span class="version">Prototype <b>v0.1</b></span></header>
+  <main>
+    <section class="world" aria-labelledby="room-title">
+      <div class="heading"><h2 id="room-title">Room view</h2><span class="units">10 × 10 m</span></div>
+      <div id="viewport" role="img" aria-label="Top-down room with four access points, a trusted white dot, a red signal estimate and a teal interference creature"></div>
+      <div class="control-strip">
+        <div><h3>Movement</h3><p>Use WASD, arrow keys,<br>or hold a direction.</p></div>
+        <div id="pad" aria-label="Movement controls">
+          <button data-direction="up" aria-label="Move up"><b>↑</b>W</button>
+          <button data-direction="left" aria-label="Move left"><b>←</b>A</button>
+          <button data-direction="down" aria-label="Move down"><b>↓</b>S</button>
+          <button data-direction="right" aria-label="Move right"><b>→</b>D</button>
+        </div>
+      </div>
+    </section>
+    <aside aria-label="Positioning diagnostics">
+      <section class="signals"><div class="heading"><h2>Signal diagnostics</h2><span id="rate" class="units"></span></div>
+        <div class="scale"><span>Access points</span><span>−90 to −20 dBm</span></div>
+        <div id="rows"></div>
+      </section>
+      <section class="estimate">
+        <h2>Signal estimate</h2><p id="invalid" hidden>NO VALID SOLUTION</p>
+        <dl id="coordinates"><div><dt>X position</dt><dd id="x"></dd></div><div><dt>Y position</dt><dd id="y"></dd></div></dl>
+        <div class="error" id="error-line"><span>Position error</span><strong id="error"></strong></div>
+      </section>
+      <section class="legend"><h3>Map legend</h3>
+        <span><i class="dot"></i>Inertial / trusted</span><span><i class="ring"></i>Signal estimate</span>
+        <span><i class="creature"></i>Radio interference creature</span>
+      </section>
+      <details id="knobs"><summary>Developer Knobs</summary><div id="settings"></div></details>
+    </aside>
+  </main>
+  <script type="module" src="/src/main.ts"></script>
+</body></html>
